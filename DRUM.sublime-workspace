@@ -1,0 +1,551 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"initia",
+				"initial_state"
+			],
+			[
+				"grru",
+				"grru64"
+			],
+			[
+				"gru",
+				"grru64a_mi_sig"
+			],
+			[
+				"gr",
+				"gram_schmidt_tensors"
+			],
+			[
+				"RNNCell",
+				"RNNCell"
+			],
+			[
+				"cross_",
+				"cross_entropy_validation"
+			],
+			[
+				"cross_en",
+				"cross_entropy_training"
+			],
+			[
+				"alp",
+				"alpha"
+			],
+			[
+				"alpa",
+				"alpha_transpose"
+			],
+			[
+				"epoc",
+				"epochs_to_train"
+			],
+			[
+				"epo",
+				"epochs"
+			],
+			[
+				"test",
+				"test_neural_network2"
+			],
+			[
+				"hidden",
+				"hidden_to_output_weights"
+			],
+			[
+				"hidde",
+				"hidden_to_output_weights"
+			],
+			[
+				"hidden_",
+				"hidden_layer_weighted_input"
+			],
+			[
+				"outpu",
+				"output_layer_activation"
+			],
+			[
+				"g",
+				"gpdx"
+			],
+			[
+				"sta",
+				"stagey"
+			],
+			[
+				"gp",
+				"gpdy"
+			],
+			[
+				"coun",
+				"counts_10_p_sec"
+			],
+			[
+				"counts_1_",
+				"counts_1_p_sec_in_100_sec"
+			],
+			[
+				"st",
+				"std_1"
+			],
+			[
+				"count",
+				"counts_1_p_sec"
+			],
+			[
+				"cumu",
+				"cumultative_list"
+			],
+			[
+				"pegas",
+				"pegasos_single_step_update"
+			],
+			[
+				"percepton",
+				"perceptron_single_step_update"
+			]
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 392.0,
+		"last_filter": "git",
+		"selected_items":
+		[
+			[
+				"git",
+				"git: status"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"instal",
+				"Install Package Control"
+			]
+		],
+		"width": 485.0
+	},
+	"console":
+	{
+		"height": 291.0,
+		"history":
+		[
+			"pwd ",
+			"ls",
+			"LS"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/DRUM"
+	],
+	"file_history":
+	[
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/DRUM/drum.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/DRUM/sftp-config.json",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/ptb_word_lm.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/DRUM/ptb_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/DRUM/DRUM.sublime-project",
+		"/Users/Darumen/Desktop/Codes/circle.py",
+		"/Users/Darumen/Desktop/Codes/sftp-config.json",
+		"/Users/Darumen/Desktop/Codes/test.sublime-project",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/old_old_nlp_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/drum.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/old_nlp_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/nlp_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/copying_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/GORU.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/rotational_models.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/EUNN.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/ptb_iterator.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/new_ptb_word_lm.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/reader.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/models/tutorials/rnn/ptb/ptb_word_lm.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/GRRU_N=500_lambda=0.001_beta=0.9_tanh.txt",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/GS.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/supercell_DRUM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/DRUM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/models/tutorials/rnn/ptb/BUILD",
+		"/Users/Darumen/Desktop/test.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/simple-examples/9-char-based-lm/README",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/data/ptb.train.txt",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/supercell/supercell_DRUM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/job2.sh",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/job.sh",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/plot_copying.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/plot_drum.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/plot_ptb.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/output/character/T=50/GRRU_N=415_lambda=0.001_beta=0.1_modrelu_-0.001.txt",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/output/character/T=50/LSTM_N=350_lambda=0.001_beta=0.9.txt",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/text8_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/plot_models.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/plot_text8.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/GRRU.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/LSTRM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/LSTUM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Models/LSTSM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/sum_li_rumen/sum_li_rumen.py",
+		"/Users/Darumen/.bashrc",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/GS.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/LSTSM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/LSTUM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/rnn_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/rnn_cell_impl_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/copying_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/rnn_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/rnn_cell_impl_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/LSTUM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/rnn_cell.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/GORU.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/LSTSM.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/GORU.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/EUNN.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/test_unitary/LSTUM",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/Efficient-Unitary-RNN/GORU/text8_task.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/sum_li_rumen/data_generation.py",
+		"/Users/Darumen/Library/Application Support/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/Users/Darumen/Library/Application Support/Sublime Text 3/Packages/Default/Preferences.sublime-settings",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/poisson/analysis/poisson_plots.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/mnist_two_digits/cnn_mnist_li_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/mnist_two_digits/mnist_li_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/models/tutorials/rnn/ptb/reader.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/LSTM/models/tutorials/rnn/ptb/reader_test.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_eunn/Work/mnist_two_digits/sum_li_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/mnist_two_digits/cnn_mnist_li_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/mnist_two_digits/mnist_li_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/mnist_tutorial.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/mnist_li_rumen.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/EUNN-tensorflow/EUNN.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/EUNN-tensorflow/EURNN.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/UROP_Summer/Work/EUNN-tensorflow/README.md",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/rurtherford/analysis /count_rate_angle.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/rurtherford/analysis /count_rate_angle_barrier.py",
+		"/Users/Darumen/Desktop/rutherford/interpolate.py",
+		"/Users/Darumen/Desktop/rutherford/data.txt",
+		"/Users/Darumen/Desktop/rutherford/gold1.py",
+		"/Users/Darumen/Desktop/UROP Revival /Plots/loglog.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 3)/project3.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 3)/main.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 3)/utils.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 3)/packager.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/14.02/ps9.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/Trapping/analysis/main.py",
+		"/Users/Darumen/Desktop/14.02_ps_8/inflation.txt",
+		"/Users/Darumen/Desktop/data.txt",
+		"/Users/Darumen/Desktop/14.02_ps_8/ana.py",
+		"/Users/Darumen/Desktop/14.02_ps_8/data",
+		"/Users/Darumen/Desktop/rutherford/2deg/iron6p35micron.Spe",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/Trapping/analysis/analysis.py",
+		"/Users/Darumen/Desktop/rutherford/2deg/main.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/Trapping/analysis/calibration.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/main.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 1 and 2/softmax_skeleton.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/sample-zipped/sample-paper.tex",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 1 and 2/main.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 1 and 2/features.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 4/mnist_nnet_fc.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 5/conv.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 5/mlp.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 4/mnist_nnet_cnn_skeleton.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 3/neural_nets.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/analysis.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/poisson_plots.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/Trapping/analysis/ana.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/poisson/analysis/main.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/poisson/analysis/poisson_analysis.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/6036_Project2/Problem 1 and 2/softmax_verification.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/NMR Data 3.16.17/measureT2MHz7.51/plotdataT2.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/NMR Data 3.21.17/carrpurcell.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/NMR Data 3.16.17/measureT2MHz7.52/7.52MHzT2.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/hw4/problem1.py",
+		"/Users/Darumen/Desktop/Python Plotting/cuboid.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/plotdata.py",
+		"/Users/Darumen/Desktop/whittTest.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/PulsedNMR/data_acquisition/F0000CH2.CSV",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 1)/project1/project1.py",
+		"/Users/Darumen/Desktop/Python Plotting/sophPlotFit.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/8.13/poisson/analysis/poisson.xlsx",
+		"/Users/Darumen/Desktop/Python Plotting/plotHist.py",
+		"/Users/Darumen/Desktop/Python Plotting/plotBarFit.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 1)/mytest.py",
+		"/Users/Darumen/Desktop/Darumen/MIT/6.036/release (project 1)/project1.py"
+	],
+	"find":
+	{
+		"height": 25.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"size_batch",
+			"size_barch",
+			"input()",
+			"input",
+			")\n",
+			"self._lr",
+			"cell",
+			"session",
+			"feed_dict[h]",
+			"feed_dict",
+			"h",
+			"FLAGS",
+			"PTBModel",
+			"run_epoch",
+			"model.initial_state",
+			"FLAGS.",
+			"initial_state",
+			"lstm",
+			"DRUMCell",
+			"input()",
+			"input",
+			"n_batch",
+			"do_validation",
+			"PTBInput",
+			"input_",
+			"_input",
+			"input_",
+			"input_data",
+			"PTBInput",
+			"input_data",
+			"input_.input_data",
+			"session",
+			"assign_lr",
+			"Saver",
+			"Restore",
+			"bias",
+			"200",
+			"size",
+			"hidden_size",
+			"medium",
+			"20",
+			"small",
+			"run_epoch",
+			"perplexity",
+			"small",
+			"perplexity",
+			"cpu",
+			"f.flush()",
+			"write",
+			"print",
+			"cell",
+			"initial_state",
+			"cell",
+			"self._initial_state",
+			"sv",
+			"PTBModel",
+			"DRUMCell",
+			"FLAGS",
+			"model",
+			"hello",
+			"input",
+			"flags",
+			"cell",
+			"input",
+			"small",
+			"read",
+			"file_data",
+			"input",
+			"LSTMCell",
+			"infi",
+			"GRRU",
+			"bias_initializer",
+			"hello",
+			"input()",
+			"hello",
+			"input()",
+			"constant_op",
+			"dtypes",
+			"ops",
+			"tensor_shape",
+			"tensor_u",
+			"base",
+			"nest",
+			"logg",
+			"tf_loggi",
+			"tf_var",
+			"random",
+			"random_",
+			"partition",
+			"init_ops",
+			"myfeed_dict",
+			"h",
+			"h ",
+			"states",
+			"epoch_val",
+			"readIn",
+			"n_data",
+			"\\n",
+			"super_linear",
+			"raw",
+			"mx",
+			"get_shape().as",
+			"bias",
+			"x_mixed",
+			"hyper_new_state",
+			"DRUMCell",
+			"hyper_output",
+			"input",
+			"LSTMState",
+			"hyper_cell",
+			"clip",
+			"dropout",
+			"super_linear",
+			"orthofonal",
+			"tf.contri",
+			"lstm_ortho_initializer",
+			"savename",
+			"saver",
+			"--model_save_t",
+			"--model_save_to",
+			"model_save_to",
+			"approx",
+			"if saveTo",
+			"saveTo",
+			"saveTO",
+			"savename",
+			"saver",
+			"validation_losses"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 25.0
+	},
+	"input":
+	{
+		"height": 33.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.GitSavvy":
+	{
+		"height": 112.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.sftp":
+	{
+		"height": 112.0
+	},
+	"pinned_build_system": "",
+	"project": "DRUM.sublime-project",
+	"replace":
+	{
+		"height": 46.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 89.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
