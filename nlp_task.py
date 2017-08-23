@@ -64,7 +64,8 @@ def main(
 	beta, 
 	n_layers,
 	clip_threshold,
-	regularization_type # #to do: write this! 
+	regularization_type,
+	keep_prob
 	):
 	max_len_data = 1000000000
 	epoch_train, vocab_to_idx = file_data('train', n_batch, max_len_data, T, n_epochs, None)
@@ -85,18 +86,30 @@ def main(
 	# #to do: add more models 
 	if model == "DRUM":
 		if norm != None: 
-			cell = DRUMCell(n_hidden, normalization = norm)
+			def drum_cell(): 
+				return DRUMCell(n_hidden, normalization = norm)
 		else: 
-			cell = DRUMCell(n_hidden)
-		mcell = MultiRNNCell([cell for _ in range(n_layers)], state_is_tuple = False)
+			def drum_cell(): 
+				return DRUMCell(n_hidden)
+		if keep_prob is not None: 
+			def attn_cell():
+				return tf.contrib.rnn.DropoutWrapper(drum_cell(), output_keep_prob = keep_prob)
+		else: 
+			attn_cell = drum_cell 
+		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = False)
 	if model == "LSTM":
-		cell = BasicLSTMCell(n_hidden, state_is_tuple = True, forget_bias = 1)
-		mcell = MultiRNNCell([cell for _ in range(n_layers)], state_is_tuple = True)
+		def lstm_cell():
+			return BasicLSTMCell(n_hidden, state_is_tuple = True, forget_bias = 1)
+		if keep_prob is not None: 
+			def attn_cell(): 
+				return tf.contrib.rnn.DropoutWrapper(lstm_cell(), output_keep_prob = keep_prob)
+		else: 
+			attn_cell = lstm_cell 
+		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = True)
 	
 	hidden_out, states = tf.nn.dynamic_rnn(mcell, input_data, dtype=tf.float32, 
 										   initial_state = i_s)
 
-	# #to do: check initialization: ~0.247 for now 
 	V_init_val = np.sqrt(6.) / np.sqrt(n_output + n_input)
 	V_weights = tf.get_variable("V_weights", shape = [n_hidden, n_output], 
 			                    dtype = tf.float32, 
@@ -133,7 +146,8 @@ def main(
 		if clip == "value":
 			capped_gvs = [(tf.clip_by_value(grad, -clip_threshold, clip_threshold), var) for grad, var in gvs]
 		elif clip == "norm": 
-			capped_gvs = [(tf.clip_by_norm(grad, clip_threshold, axes = [tf.shape(grad)[0] - 1]), var) for grad, var in gvs]
+			ind = [1,0] * (n_layers + 1) 
+			capped_gvs = [(tf.clip_by_norm(grad, clip_threshold, axes = [ind[i]]), var) for i, (grad, var) in enumerate(gvs)]
 		train_op = optimizer.apply_gradients(capped_gvs) 
 	else: 
 		train_op = optimizer.minimize(cost)
@@ -286,6 +300,7 @@ if __name__=="__main__":
 	parser.add_argument('--n_layers', '-NL', default = 1, type = int, help = 'number of layers')
 	parser.add_argument('--clip_threshold', '-CT', default = 1., type = float, help = 'threshold of clipping')
 	parser.add_argument('--regularization_type', '-RT', default = "l1", type = str, help = 'regularization type')
+	parser.add_argument('--keep_prob', '-KP', default = None, type = float, help = 'keep probability for dropout')
 	args = parser.parse_args()
 	dict = vars(args)
 	for i in dict:
@@ -309,7 +324,8 @@ if __name__=="__main__":
 				'beta': dict['beta'],
 				'n_layers': dict['n_layers'],
 				'clip_threshold': dict['clip_threshold'],
-				'regularization_type': dict['regularization_type']
+				'regularization_type': dict['regularization_type'],
+				'keep_prob': dict['keep_prob']
 			}
 	print(kwargs)
 	main(**kwargs)
