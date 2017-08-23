@@ -1,0 +1,7 @@
+########
+
+## 	Model: LSTM with N=128
+
+########
+
+Step: 500	 Loss: 2.247242	 Max. val. of state: 6.089388	 Max. norm of state: 217.999115

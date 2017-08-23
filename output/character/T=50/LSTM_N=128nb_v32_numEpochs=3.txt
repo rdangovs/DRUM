@@ -1,0 +1,15 @@
+########
+
+## 	Model: LSTM with N=128
+
+########
+
+Step: 500	 Loss: 2.243745	 Max. val. of state: 6.027998	 Max. norm of state: 205.564270
+Step: 1000	 Loss: 2.015209	 Max. val. of state: 6.621333	 Max. norm of state: 197.828247
+Step: 1500	 Loss: 1.893857	 Max. val. of state: 6.853705	 Max. norm of state: 190.532196
+Step: 2000	 Loss: 1.811811	 Max. val. of state: 7.623670	 Max. norm of state: 177.702271
+Step: 2500	 Loss: 1.748460	 Max. val. of state: 7.393035	 Max. norm of state: 177.511505
+Step: 3000	 Loss: 1.692014	 Max. val. of state: 7.222789	 Max. norm of state: 167.850052
+Step: 3609	 Loss: 1.641420	 Max. val. of state: 7.923810	 Max. norm of state: 179.370956
+Step: 4109	 Loss: 1.604049	 Max. val. of state: 7.865684	 Max. norm of state: 173.054764
+Step: 4609	 Loss: 1.572458	 Max. val. of state: 7.948570	 Max. norm of state: 170.722031

@@ -5,14 +5,16 @@ import numpy as np
 import argparse, os
 import tensorflow as tf
 from tensorflow.python.ops import init_ops
-from tensorflow.contrib.rnn import BasicLSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple
+from tensorflow.contrib.rnn import BasicLSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple, MultiRNNCell
 from drum import DRUMCell
 from ptb_iterator import *
 import re
 
+# #to do: write this for the L1 regularization
+# def l1_loss(t) = lambda t: tf.reduce_sum(tf.abs(t))
+
 # #char level for now: 
 # #todo: add word level and text8 option
-
 def file_data(stage, 
 	          n_batch, 
 	          n_data, 
@@ -55,15 +57,17 @@ def main(
 	n_epochs, 
 	n_batch, 
 	n_hidden, 
-	capacity, 
-	comp, FFT, 
 	learning_rate, 
 	decay, 
 	nb_v, 
 	norm,
-	dynamic_norm,
+	#dynamic_norm,
 	opt,
-	clip
+	clip,
+	beta, 
+	n_layers,
+	clip_threshold,
+	regularization_type # #to do: write this! 
 	):
 	max_len_data = 1000000000
 	epoch_train, vocab_to_idx = file_data('train', n_batch, max_len_data, T, n_epochs, None)
@@ -75,9 +79,10 @@ def main(
 	x = tf.placeholder("int64", [None, T])
 	y = tf.placeholder("int64", [None, T])
 	if model == "LSTM":
-		i_s = LSTMStateTuple(tf.placeholder("float", [None, n_hidden]), tf.placeholder("float", [None, n_hidden]))
+		i_s = tuple([LSTMStateTuple(tf.placeholder("float", [None, n_hidden]), tf.placeholder("float", [None, n_hidden]))
+			   for _ in range(n_layers)])
 	else:
-		i_s = tf.placeholder("float", [None, n_hidden])	
+		i_s = tuple([tf.placeholder("float", [None, n_hidden]) for _ in range(n_layers)])	
 	input_data = tf.one_hot(x, n_input, dtype=tf.float32)
 
 	# #to do: add more models 
@@ -86,9 +91,12 @@ def main(
 			cell = DRUMCell(n_hidden, normalization = norm)
 		else: 
 			cell = DRUMCell(n_hidden)
+		mcell = MultiRNNCell([cell for _ in range(n_layers)], state_is_tuple = False)
 	if model == "LSTM":
-		cell = BasicLSTMCell(n_hidden, state_is_tuple=True, forget_bias=1)
-	hidden_out, states = tf.nn.dynamic_rnn(cell, input_data, dtype=tf.float32, 
+		cell = BasicLSTMCell(n_hidden, state_is_tuple = True, forget_bias = 1)
+		mcell = MultiRNNCell([cell for _ in range(n_layers)], state_is_tuple = True)
+	
+	hidden_out, states = tf.nn.dynamic_rnn(mcell, input_data, dtype=tf.float32, 
 										   initial_state = i_s)
 
 	# #to do: check initialization: ~0.247 for now 
@@ -106,6 +114,8 @@ def main(
 
 	cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = output_data, 
 																		 labels = y))
+	if beta is not None: 
+		cost += beta * sum([tf.nn.l2_loss(i) for i in tf.global_variables()])
 	correct_pred = tf.equal(tf.argmax(output_data, 2), y)
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
@@ -117,21 +127,30 @@ def main(
 		optimizer = tf.train.MomentumOptimizer(learning_rate = learning_rate, momentum = momentum)
 	elif opt == "Adam": 
 		optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
-	if clip: 
+	if clip is not None: 
 		gvs = optimizer.compute_gradients(cost)
-		# # depreciated: need to add bounds to be parameters
-		capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gvs]
+		if clip == "value":
+			capped_gvs = [(tf.clip_by_value(grad, -clip_threshold, clip_threshold), var) for grad, var in gvs]
+		elif clip == "norm": 
+			capped_gvs = [(tf.clip_by_norm(grad, clip_threshold, axes = [tf.shape(grad)[0] - 1]), var) for grad, var in gvs]
 		train_op = optimizer.apply_gradients(capped_gvs) 
 	else: 
 		train_op = optimizer.minimize(cost)
-
+	
 	init = tf.global_variables_initializer()
 	for i in tf.global_variables():
 		print(i.name)
 	filename = "./output/character/T=" + str(T) + \
-			   "/normalized_" + model  + "_N=" + str(n_hidden) + \
-			   "nb_v" + str(nb_v) + "_norm=" + str(norm) + \
+			   "/" + str(n_layers) + model  + "_" + opt + "_N=" + str(n_hidden) + \
+			   "nb_v" + str(nb_v) + \
 			   "_numEpochs=" + str(n_epochs)
+			   
+	if beta is not None: 
+		filename += "_beta=" + str(beta)
+	if clip is not None: 
+		filename += "_clip_" + clip + str(clip_threshold)
+	if norm is not None: 
+		filename += "_norm=" + str(norm)
 	filename = filename + ".txt"
 	if not os.path.exists(os.path.dirname(filename)):
 		try:
@@ -156,10 +175,12 @@ def main(
 				break
 			print("Running validation...")
 			if model == "LSTM":
-				val_state = LSTMStateTuple(np.zeros((nb_v, n_hidden), dtype = np.float), 
-					                       np.zeros((1, n_hidden), dtype = np.float))
+				val_state = tuple([LSTMStateTuple(np.zeros((nb_v, n_hidden), dtype = np.float), 
+					               np.zeros((nb_v, n_hidden), dtype = np.float))
+								   for _ in range(n_layers)])
 			else:
-				val_state = np.zeros((nb_v, n_hidden), dtype = np.float)
+				val_state = tuple([np.zeros((nb_v, n_hidden), dtype = np.float)
+								   for _ in range(n_layers)])
 			for stepb, (X_val, Y_val) in enumerate(val):
 				val_batch_x = X_val
 				val_batch_y = Y_val
@@ -187,9 +208,12 @@ def main(
 
 		sess.run(init)
 		if model == "LSTM":
-			training_state = LSTMStateTuple(np.zeros((n_batch, n_hidden), dtype = np.float), np.zeros((n_batch, n_hidden), dtype = np.float))
+			training_state = tuple([LSTMStateTuple(np.zeros((n_batch, n_hidden), dtype = np.float), 
+							        np.zeros((n_batch, n_hidden), dtype = np.float)) 
+								 	for _ in range(n_layers)])
 		else:
-			training_state = np.zeros((n_batch, n_hidden), dtype = np.float)
+			training_state = tuple([np.zeros((n_batch, n_hidden), dtype = np.float)
+									for _ in range(n_layers)])
 		i = 0
 		t = 0
 		for epoch in epoch_train:
@@ -209,7 +233,7 @@ def main(
 				losses.append(loss)
 				accs.append(acc)
 				t += 1
-				if step % 1000 == 999:
+				if step % 500 == 499:
 					do_validation()
 			i += 1
 		print("Optimization Finished!")
@@ -222,11 +246,12 @@ def main(
 				break
 			print("Running validation...")
 			if model == "LSTM":
-				test_state = LSTMStateTuple(np.zeros((nb_v, n_hidden), 
-					                        dtype = np.float), np.zeros((nb_v, n_hidden), 
-					                        dtype = np.float))
+				test_state = tuple([LSTMStateTuple(np.zeros((nb_v, n_hidden), dtype = np.float), 
+											np.zeros((nb_v, n_hidden), dtype = np.float))
+											for _ in range(n_layers)])
 			else:
-				test_state = np.zeros((nb_v, n_hidden), dtype = np.float)
+				test_state = tuple([np.zeros((nb_v, n_hidden), dtype = np.float)
+									for _ in range(n_layers)])
 			for stepb, (X_test,Y_test) in enumerate(test):
 				test_batch_x = X_test
 				test_batch_y = Y_test
@@ -247,17 +272,19 @@ if __name__=="__main__":
 	parser.add_argument('-T', type = int, default = 50, help = 'T-gram')
 	parser.add_argument("--n_epochs", '-E', type = int, default = 20, help = 'num epochs')
 	parser.add_argument('--n_batch', '-B', type = int, default = 32, help = 'batch size')
-	parser.add_argument('--n_hidden', '-H', type = int, default = 512, help = 'hidden layer size')
+	parser.add_argument('--n_hidden', '-H', type = int, default = 128, help = 'hidden layer size')
 	parser.add_argument('--capacity', '-L', type = int, default = 2, help = 'Tunable style capacity, only for EURNN, default value is 2')
-	parser.add_argument('--comp', '-C', type = str, default="False", help = 'Complex domain or Real domain. Default is False: real domain')
-	parser.add_argument('--FFT', '-F', type = str, default = "False", help = 'FFT style, default is False')
 	parser.add_argument('--learning_rate', '-R', default = 0.001, type = float)
 	parser.add_argument('--decay', '-D', default = 0.9, type = float)
 	parser.add_argument('--nb_v', '-nbv', default = 32, type = int)
 	parser.add_argument('--norm', '-norm', default = None, type = float)
-	parser.add_argument('--dynamic_norm', '-d_norm', default=None, type=str, help = 'type of norm dynamics: none, growth, decay')
+	#parser.add_argument('--dynamic_norm', '-d_norm', default=None, type=str, help = 'type of norm dynamics: none, growth, decay')
 	parser.add_argument('--opt', '-O', default = "RMSProp", type = str, help = 'type of optimizer: RMSProp, Momentum, Adam')
-	parser.add_argument('--clip', '-cl', default = "False", type = str, help = 'Clip gradients?')
+	parser.add_argument('--clip', '-cl', default = None, type = str, help = 'Clip gradients?')
+	parser.add_argument('--beta', '-beta', default = None, type = float, help = 'beta value')
+	parser.add_argument('--n_layers', '-NL', default = 1, type = int, help = 'number of layers')
+	parser.add_argument('--clip_threshold', '-CT', default = 1., type = float, help = 'threshold of clipping')
+	parser.add_argument('--regularization_type', '-RT', default = "l1", type = str, help = 'regularization type')
 	args = parser.parse_args()
 	dict = vars(args)
 	for i in dict:
@@ -271,16 +298,17 @@ if __name__=="__main__":
 				'n_epochs': dict['n_epochs'],
 			  	'n_batch': dict['n_batch'],
 			  	'n_hidden': dict['n_hidden'],
-			  	'capacity': dict['capacity'],
-			  	'comp': dict['comp'],
-			  	'FFT': dict['FFT'],
 			  	'learning_rate': dict['learning_rate'],
 			  	'decay': dict['decay'],
 				'nb_v': dict['nb_v'], 
 				'norm': dict['norm'],
-				'dynamic_norm': dict['dynamic_norm'],
+				#'dynamic_norm': dict['dynamic_norm'],
 				'opt': dict['opt'],
-				'clip': dict['clip']
+				'clip': dict['clip'],
+				'beta': dict['beta'],
+				'n_layers': dict['n_layers'],
+				'clip_threshold': dict['clip_threshold'],
+				'regularization_type': dict['regularization_type']
 			}
 	print(kwargs)
 	main(**kwargs)
