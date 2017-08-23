@@ -10,9 +10,6 @@ from drum import DRUMCell
 from ptb_iterator import *
 import re
 
-# #to do: write this for the L1 regularization
-# def l1_loss(t) = lambda t: tf.reduce_sum(tf.abs(t))
-
 # #char level for now: 
 # #todo: add word level and text8 option
 def file_data(stage, 
@@ -114,8 +111,12 @@ def main(
 
 	cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = output_data, 
 																		 labels = y))
+	if regularization_type == "l1": 
+		regularizer = tf.contrib.layers.l1_regularizer(scale = beta)
+	elif regularization_type == "l2": 
+		regularizer = tf.contrib.layers.l2_regularizer(scale = beta)
 	if beta is not None: 
-		cost += beta * sum([tf.nn.l2_loss(i) for i in tf.global_variables()])
+		cost += tf.contrib.layers.apply_regularization(regularizer, tf.global_variables())
 	correct_pred = tf.equal(tf.argmax(output_data, 2), y)
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
