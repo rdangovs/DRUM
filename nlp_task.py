@@ -60,14 +60,13 @@ def main(
 	norm,
 	#dynamic_norm,
 	opt,
-	clip,
 	beta, 
 	n_layers,
 	clip_threshold,
 	regularization_type,
 	keep_prob
 	):
-	max_len_data = 1000000000
+	max_len_data = 1000000000f
 	epoch_train, vocab_to_idx = file_data('train', n_batch, max_len_data, T, n_epochs, None)
 	n_input = len(vocab_to_idx)
 	epoch_val, _ = file_data('valid', nb_v, max_len_data, T, 10000, vocab_to_idx)
@@ -129,7 +128,7 @@ def main(
 	elif regularization_type == "l2": 
 		regularizer = tf.contrib.layers.l2_regularizer(scale = beta)
 	if beta is not None: 
-		cost += tf.contrib.layers.apply_regularization(regularizer, tf.global_variables())
+		cost += tf.contrib.layers.apply_regularization(regularizer, tf.trainable_variables())
 	correct_pred = tf.equal(tf.argmax(output_data, 2), y)
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
@@ -141,14 +140,12 @@ def main(
 		optimizer = tf.train.MomentumOptimizer(learning_rate = learning_rate, momentum = momentum)
 	elif opt == "Adam": 
 		optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
-	if clip is not None: 
-		gvs = optimizer.compute_gradients(cost)
-		if clip == "value":
-			capped_gvs = [(tf.clip_by_value(grad, -clip_threshold, clip_threshold), var) for grad, var in gvs]
-		elif clip == "norm": 
-			ind = [1,0] * (n_layers + 1) 
-			capped_gvs = [(tf.clip_by_norm(grad, clip_threshold, axes = [ind[i]]), var) for i, (grad, var) in enumerate(gvs)]
-		train_op = optimizer.apply_gradients(capped_gvs) 
+	if clip_threshold is not None: 
+		tvars = tf.trainable_variables()
+		grads = tf.gradients(cost, tvars) 
+		grads, _ = tf.clip_by_global_norm(grads, clip_threshold)
+		train_op = optimizer.apply_gradients(zip(grads, tvars),
+        					global_step = tf.contrib.framework.get_or_create_global_step())
 	else: 
 		train_op = optimizer.minimize(cost)
 	
@@ -162,8 +159,8 @@ def main(
 			   
 	if beta is not None: 
 		filename += "_beta=" + str(beta)
-	if clip is not None: 
-		filename += "_clip_" + clip + str(clip_threshold)
+	if clip_threshold is not None: 
+		filename += "_clip_threshold=" + str(clip_threshold)
 	if norm is not None: 
 		filename += "_norm=" + str(norm)
 	filename = filename + ".txt"
@@ -212,6 +209,7 @@ def main(
 				(t, validation_losses[-1], val_max,val_norm_max))
 		f.flush()
 
+
 	step = 0
 	with tf.Session(config = tf.ConfigProto(log_device_placement = False, 
 		                                    allow_soft_placement = False)) as sess:
@@ -248,7 +246,7 @@ def main(
 				losses.append(loss)
 				accs.append(acc)
 				t += 1
-				if step % 500 == 499:
+				if step % 1000 == 999:
 					do_validation()
 			i += 1
 		print("Optimization Finished!")
@@ -295,10 +293,9 @@ if __name__=="__main__":
 	parser.add_argument('--norm', '-norm', default = None, type = float)
 	#parser.add_argument('--dynamic_norm', '-d_norm', default=None, type=str, help = 'type of norm dynamics: none, growth, decay')
 	parser.add_argument('--opt', '-O', default = "RMSProp", type = str, help = 'type of optimizer: RMSProp, Momentum, Adam')
-	parser.add_argument('--clip', '-cl', default = None, type = str, help = 'Clip gradients?')
 	parser.add_argument('--beta', '-beta', default = None, type = float, help = 'beta value')
 	parser.add_argument('--n_layers', '-NL', default = 1, type = int, help = 'number of layers')
-	parser.add_argument('--clip_threshold', '-CT', default = 1., type = float, help = 'threshold of clipping')
+	parser.add_argument('--clip_threshold', '-CT', default = 5., type = float, help = 'threshold of clipping')
 	parser.add_argument('--regularization_type', '-RT', default = "l1", type = str, help = 'regularization type')
 	parser.add_argument('--keep_prob', '-KP', default = None, type = float, help = 'keep probability for dropout')
 	args = parser.parse_args()
@@ -320,7 +317,6 @@ if __name__=="__main__":
 				'norm': dict['norm'],
 				#'dynamic_norm': dict['dynamic_norm'],
 				'opt': dict['opt'],
-				'clip': dict['clip'],
 				'beta': dict['beta'],
 				'n_layers': dict['n_layers'],
 				'clip_threshold': dict['clip_threshold'],
