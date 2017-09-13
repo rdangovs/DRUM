@@ -168,7 +168,7 @@ class DRUMCell(RNNCell):
 			bias_ones = self._bias_initializer
 			if self._bias_initializer is None:
 				dtype = [a.dtype for a in [inputs, state]][0]
-				bias_ones = init_ops.constant_initializer(1.0, dtype = dtype)
+				bias_ones = init_ops.constant_initializer(1.0, dtype = dtype) 
 				value = sigmoid(
 				_linear([inputs, state], 2 * self._hidden_size, True, bias_ones,
 						self._kernel_initializer))

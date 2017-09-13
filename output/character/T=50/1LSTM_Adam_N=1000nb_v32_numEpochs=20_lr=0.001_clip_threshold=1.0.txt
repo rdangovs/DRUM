@@ -1,0 +1,9 @@
+########
+
+## 	Model: LSTM with N=1000
+
+########
+
+Step: 1500	 TrLoss: 1.432569	 Loss: 1.469232	 Epoch: 0
+Step: 3000	 TrLoss: 1.273237	 Loss: 1.254901	 Epoch: 0
+Step: 4609	 TrLoss: 1.103998	 Loss: 1.162304	 Epoch: 1

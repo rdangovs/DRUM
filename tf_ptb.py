@@ -14,17 +14,20 @@
 # ==============================================================================
 
 """Example / benchmark for building a PTB LSTM model.
+
 Trains the model described in:
 (Zaremba, et. al.) Recurrent Neural Network Regularization
 http://arxiv.org/abs/1409.2329
+
 There are 3 supported model configurations:
 ===========================================
 | config | epochs | train | valid  | test
 ===========================================
 | small  | 13     | 37.99 | 121.39 | 115.91
 | medium | 39     | 48.45 |  86.16 |  82.07
-| large  | 55     | 37.87 |  82.62 |  78.29
+| large  | 55    | 37.87 |  82.62 |  78.29
 The exact results may vary depending on the random initialization.
+
 The hyperparameters used in the model:
 - init_scale - the initial scale of the weights
 - learning_rate - the initial value of the learning rate
@@ -37,12 +40,17 @@ The hyperparameters used in the model:
 - keep_prob - the probability of keeping weights in the dropout layer
 - lr_decay - the decay of the learning rate for each epoch after "max_epoch"
 - batch_size - the batch size
+
 The data required for this example is in the data/ dir of the
 PTB dataset from Tomas Mikolov's webpage:
+
 $ wget http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz
 $ tar xvf simple-examples.tgz
+
 To run:
+
 $ python ptb_word_lm.py --data_path=simple-examples/data/
+
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -56,21 +64,35 @@ import tensorflow as tf
 
 import reader
 
+from drum import DRUMCell
+
+
 flags = tf.flags
 logging = tf.logging
 
 flags.DEFINE_string(
+  "cell", "LSTM", 
+  "The cell for the model. Possible options are: LSTM, DRUM, GRRU and GORU")
+flags.DEFINE_string( 
+  "norm", 1.0, 
+  "The normalization threshold for the DRUM model.") 
+flags.DEFINE_string(
     "model", "small",
     "A type of model. Possible options are: small, medium, large.")
-flags.DEFINE_string("data_path", "./simple-examples/data",
+flags.DEFINE_string("data_path", "/home/darumen/Research/Models/simple-examples/data",
                     "Where the training/test data is stored.")
-flags.DEFINE_string("save_path", None,
+"""
+flags.DEFINE_string("save_path", "./PTB",
                     "Model output directory.")
+"""
 flags.DEFINE_bool("use_fp16", False,
                   "Train using 16-bit floats instead of 32bit floats")
 
 FLAGS = flags.FLAGS
+filename = "./output/character/" + FLAGS.model + FLAGS.cell + str(FLAGS.norm) + ".txt"
+#FLAGS.save_path = FLAGS.save_path + FLAGS.model + "/" + FLAGS.cell
 
+f = open(filename, 'w')
 
 def data_type():
   return tf.float16 if FLAGS.use_fp16 else tf.float32
@@ -86,7 +108,6 @@ class PTBInput(object):
     self.input_data, self.targets = reader.ptb_producer(
         data, batch_size, num_steps, name=name)
 
-
 class PTBModel(object):
   """The PTB model."""
 
@@ -97,41 +118,50 @@ class PTBModel(object):
     num_steps = input_.num_steps
     size = config.hidden_size
     vocab_size = config.vocab_size
+    if FLAGS.cell == "GORU": 
+      capacity = config.capacity
+      FFT = config.fft
+      comp = config.compl
 
     # Slightly better results can be obtained with forget gate biases
     # initialized to 1 but the hyperparameters of the model would need to be
     # different than reported in the paper.
-    def lstm_cell():
-      # With the latest TensorFlow source code (as of Mar 27, 2017),
-      # the BasicLSTMCell will need a reuse parameter which is unfortunately not
-      # defined in TensorFlow 1.0. To maintain backwards compatibility, we add
-      # an argument check here:
-      if 'reuse' in inspect.getargspec(
-          tf.contrib.rnn.BasicLSTMCell.__init__).args:
+    if FLAGS.cell == "LSTM": 
+      def lstm_cell():
         return tf.contrib.rnn.BasicLSTMCell(
-            size, forget_bias=0.0, state_is_tuple=True,
-            reuse=tf.get_variable_scope().reuse)
-      else:
-        return tf.contrib.rnn.BasicLSTMCell(
-            size, forget_bias=0.0, state_is_tuple=True)
-    attn_cell = lstm_cell
-    if is_training and config.keep_prob < 1:
-      def attn_cell():
-        return tf.contrib.rnn.DropoutWrapper(
-            lstm_cell(), output_keep_prob=config.keep_prob)
+              size, forget_bias=0.0, state_is_tuple=True)
+      attn_cell = lstm_cell
+      if is_training and config.keep_prob < 1:
+        def attn_cell():
+          return tf.contrib.rnn.DropoutWrapper(
+              lstm_cell(), output_keep_prob=config.keep_prob)
+    if FLAGS.cell == "DRUM": 
+      def drum_cell(): 
+        return DRUMCell(size, normalization = float(FLAGS.norm))
+      attn_cell = drum_cell 
+      if is_training and config.keep_prob < 1:
+        def attn_cell():
+          return tf.contrib.rnn.DropoutWrapper(
+              drum_cell(), output_keep_prob=config.keep_prob)
+    if FLAGS.cell == "GRRU":
+      def grru_cell():
+        return GRRUCell(size, size_batch = batch_size)
+      attn_cell = grru_cell
+      if is_training and config.keep_prob < 1:
+        def attn_cell():
+          return tf.contrib.rnn.DropoutWrapper(
+              grru_cell(), output_keep_prob=config.keep_prob)
+ 
     cell = tf.contrib.rnn.MultiRNNCell(
-        [attn_cell() for _ in range(config.num_layers)], state_is_tuple=True)
+      [attn_cell() for _ in range(config.num_layers)], state_is_tuple=True)
+    self._initial_state = cell.zero_state(batch_size, data_type()) 
 
-    self._initial_state = cell.zero_state(batch_size, data_type())
+    embedding = tf.get_variable(
+        "embedding", [vocab_size, size], dtype=data_type())
 
-    with tf.device("/cpu:0"):
-      embedding = tf.get_variable(
-          "embedding", [vocab_size, size], dtype=data_type())
-      inputs = tf.nn.embedding_lookup(embedding, input_.input_data)
+    inputs = tf.nn.embedding_lookup(embedding, input_.input_data)   
 
     if is_training and config.keep_prob < 1:
-      print(inputs)
-      input()
       inputs = tf.nn.dropout(inputs, config.keep_prob)
 
     # Simplified version of models/tutorials/rnn/rnn.py's rnn().
@@ -143,6 +173,8 @@ class PTBModel(object):
     # inputs = tf.unstack(inputs, num=num_steps, axis=1)
     # outputs, state = tf.contrib.rnn.static_rnn(
     #     cell, inputs, initial_state=self._initial_state)
+
+
     outputs = []
     state = self._initial_state
     with tf.variable_scope("RNN"):
@@ -156,21 +188,11 @@ class PTBModel(object):
         "softmax_w", [size, vocab_size], dtype=data_type())
     softmax_b = tf.get_variable("softmax_b", [vocab_size], dtype=data_type())
     logits = tf.matmul(output, softmax_w) + softmax_b
-
-    # Reshape logits to be 3-D tensor for sequence loss
-    logits = tf.reshape(logits, [batch_size, num_steps, vocab_size])
-
-    # use the contrib sequence loss and average over the batches
-    loss = tf.contrib.seq2seq.sequence_loss(
-        logits,
-        input_.targets,
-        tf.ones([batch_size, num_steps], dtype=data_type()),
-        average_across_timesteps=False,
-        average_across_batch=True
-    )
-
-    # update the cost variables
-    self._cost = cost = tf.reduce_sum(loss)
+    loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
+        [logits],
+        [tf.reshape(input_.targets, [-1])],
+        [tf.ones([batch_size * num_steps], dtype=data_type())])
+    self._cost = cost = tf.reduce_sum(loss) / batch_size
     self._final_state = state
 
     if not is_training:
@@ -178,9 +200,17 @@ class PTBModel(object):
 
     self._lr = tf.Variable(0.0, trainable=False)
     tvars = tf.trainable_variables()
-    grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars),
+    
+    grads = tf.gradients(cost, tvars) 
+    if FLAGS.cell == "LSTM":
+      grads, _ = tf.clip_by_global_norm(grads,
                                       config.max_grad_norm)
-    optimizer = tf.train.GradientDescentOptimizer(self._lr)
+    
+    if FLAGS.cell == "LSTM": 
+      optimizer = tf.train.GradientDescentOptimizer(self._lr)
+    elif FLAGS.cell == "DRUM": 
+      optimizer = tf.train.RMSPropOptimizer(learning_rate = 0.001, decay = 0.9)
+    
     self._train_op = optimizer.apply_gradients(
         zip(grads, tvars),
         global_step=tf.contrib.framework.get_or_create_global_step())
@@ -220,21 +250,31 @@ class PTBModel(object):
 class SmallConfig(object):
   """Small config."""
   init_scale = 0.1
-  learning_rate = 1.0
+  if FLAGS.cell in ["LSTM", "GORU"]:
+    learning_rate = 1.0
+  else: 
+    learning_rate = 1.0
   max_grad_norm = 5
   num_layers = 2
   num_steps = 20
-  hidden_size = 200
+  if FLAGS.cell == "LSTM":
+    hidden_size = 200
+  if FLAGS.cell in ["GRRU", "DRUM"]:
+    hidden_size = 280
   max_epoch = 4
-  max_max_epoch = 13
+  if FLAGS.cell == "LSTM":
+    max_max_epoch = 13
+  else: 
+    max_max_epoch = 26
   keep_prob = 1.0
   lr_decay = 0.5
-  batch_size = 20 
+  batch_size = 20
   vocab_size = 10000
 
 
 class MediumConfig(object):
   """Medium config."""
+  """
   init_scale = 0.05
   learning_rate = 1.0
   max_grad_norm = 5
@@ -247,18 +287,50 @@ class MediumConfig(object):
   lr_decay = 0.8
   batch_size = 20
   vocab_size = 10000
+  """
+  init_scale = 0.05
+  if FLAGS.cell == "LSTM":
+    learning_rate = 1.0
+  else: 
+    learning_rate = 0.1
+  max_grad_norm = 5
+  num_layers = 2
+  num_steps = 35
+  if FLAGS.cell == "LSTM": 
+    hidden_size = 650
+  if FLAGS.cell == "DRUM":
+    hidden_size = 915  #915
+  max_epoch = 6
+  if FLAGS.cell == "LSTM":
+    max_max_epoch = 39
+  else: 
+    max_max_epoch = 50
+  keep_prob = 0.5
+  lr_decay = 0.8
+  batch_size = 20
+  vocab_size = 10000
 
 
 class LargeConfig(object):
   """Large config."""
   init_scale = 0.04
-  learning_rate = 1.0
+  if FLAGS.cell == "LSTM":
+    learning_rate = 1.0
+  else: 
+    learning_rate = 0.1
   max_grad_norm = 10
   num_layers = 2
   num_steps = 35
-  hidden_size = 1500
+  if FLAGS.cell == "LSTM":
+    hidden_size = 1500
+  if FLAGS.cell == "DRUM": 
+    hidden_size = 2135 
   max_epoch = 14
-  max_max_epoch = 55
+  
+  if FLAGS.cell == "LSTM":
+    max_max_epoch = 55
+  else: 
+    max_max_epoch = 65
   keep_prob = 0.35
   lr_decay = 1 / 1.15
   batch_size = 20
@@ -281,8 +353,10 @@ class TestConfig(object):
   vocab_size = 10000
 
 
+
 def run_epoch(session, model, eval_op=None, verbose=False):
   """Runs the model on the given data."""
+
   start_time = time.time()
   costs = 0.0
   iters = 0
@@ -294,25 +368,37 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   }
   if eval_op is not None:
     fetches["eval_op"] = eval_op
-
+  
   for step in range(model.input.epoch_size):
     feed_dict = {}
-    for i, (c, h) in enumerate(model.initial_state):
-      feed_dict[c] = state[i].c
-      feed_dict[h] = state[i].h
-
+    if FLAGS.cell == "LSTM":
+      for i, (c, h) in enumerate(model.initial_state):
+        feed_dict[c] = state[i].c 
+        feed_dict[h] = state[i].h
+    else:
+      for i, h in enumerate(model.initial_state): 
+        feed_dict[h] = state[i]
     vals = session.run(fetches, feed_dict)
     cost = vals["cost"]
     state = vals["final_state"]
-
+    
+    #print(np.max(vals["final_state"][0]), np.max(vals["final_state"][1]))
+    #print(np.sum([i**2 for i in state[0][0]]))
     costs += cost
     iters += model.input.num_steps
-
+  
     if verbose and step % (model.input.epoch_size // 10) == 10:
+      print(np.max(state))
+      print(np.sqrt(np.sum([i**2 for i in state[0][0]])))
+
       print("%.3f perplexity: %.3f speed: %.0f wps" %
             (step * 1.0 / model.input.epoch_size, np.exp(costs / iters),
              iters * model.input.batch_size / (time.time() - start_time)))
-
+     
+      f.write("%.3f perplexity: %.3f speed: %.0f wps \n" %
+            (step * 1.0 / model.input.epoch_size, np.exp(costs / iters),
+             iters * model.input.batch_size / (time.time() - start_time)))
+      f.flush() 
   return np.exp(costs / iters)
 
 
@@ -329,19 +415,27 @@ def get_config():
     raise ValueError("Invalid model: %s", FLAGS.model)
 
 
+
+
+
 def main(_):
+
   if not FLAGS.data_path:
     raise ValueError("Must set --data_path to PTB data directory")
 
-  raw_data = reader.ptb_raw_data(data_path=FLAGS.data_path, is_char=True)
-  #print(type(raw_data))
-  #input() 
+  
+  #FLAGS.save_path = FLAGS.save_path + FLAGS.cell + "/" + FLAGS.model
+
+  raw_data = reader.ptb_raw_data(FLAGS.data_path)
+  
   train_data, valid_data, test_data, _ = raw_data
+
 
   config = get_config()
   eval_config = get_config()
   eval_config.batch_size = 1
   eval_config.num_steps = 1
+
 
   with tf.Graph().as_default():
     initializer = tf.random_uniform_initializer(-config.init_scale,
@@ -365,26 +459,39 @@ def main(_):
       with tf.variable_scope("Model", reuse=True, initializer=initializer):
         mtest = PTBModel(is_training=False, config=eval_config,
                          input_=test_input)
+    
 
-    sv = tf.train.Supervisor(logdir=FLAGS.save_path)
+    #sv = tf.train.Supervisor(logdir=FLAGS.save_path)
+    sv = tf.train.Supervisor()
+
     with sv.managed_session() as session:
       for i in range(config.max_max_epoch):
         lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0)
-        m.assign_lr(session, config.learning_rate * lr_decay)
-
+        m.assign_lr(session, config.learning_rate * lr_decay)        
         print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
+        f.write("Epoch: %d Learning rate: %.3f \n" % (i + 1, session.run(m.lr)))
+        f.flush() 
+
         train_perplexity = run_epoch(session, m, eval_op=m.train_op,
                                      verbose=True)
         print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
+        f.write("Epoch: %d Train Perplexity: %.3f \n" % (i + 1, train_perplexity))
+        f.flush() 
+
         valid_perplexity = run_epoch(session, mvalid)
         print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
+        f.write("Epoch: %d Valid Perplexity: %.3f \n" % (i + 1, valid_perplexity))
+        f.flush() 
 
       test_perplexity = run_epoch(session, mtest)
       print("Test Perplexity: %.3f" % test_perplexity)
-
+      f.write("Test Perplexity: %.3f \n" % test_perplexity)
+      f.flush() 
+      """
       if FLAGS.save_path:
         print("Saving model to %s." % FLAGS.save_path)
         sv.saver.save(session, FLAGS.save_path, global_step=sv.global_step)
+      """
 
 
 if __name__ == "__main__":
