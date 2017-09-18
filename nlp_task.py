@@ -108,7 +108,15 @@ def main(
 		else: 
 			attn_cell = lstm_cell 
 		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = True)
-	
+	if model == "GRU": 
+		def gru_cell(): 
+			return GRUCell(n_hidden, kernel_initializer = tf.orthogonal_initializer())
+		if keep_prob is not None: 
+			def attn_cell():
+				return tf.contrib.rnn.DropoutWrapper(gru_cell(), output_keep_prob = keep_prob)
+		else: 
+			attn_cell = gru_cell 
+		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = True)
 	hidden_out, states = tf.nn.dynamic_rnn(mcell, input_data, dtype=tf.float32, initial_state = i_s)
 
 	V_init_val = np.sqrt(6.) / np.sqrt(n_output + n_input)
@@ -258,7 +266,9 @@ def main(
 		validation_losses.append(sum(val_losses) / len(val_losses))
 		print("Validation Loss= " + "{:.6f}".format(validation_losses[-1]))
 		test_loss = do_test ()
-		f.write("Step: %d\t TrLoss: %f\t TestLoss: %f\t ValLoss: %f\t Epoch: %d\n" % (t, loss, test_loss, validation_losses[-1], curr_epoch)) 
+		lr = [v for v in tf.global_variables() if v.name == "learning_rate:0"][0]
+		lr = sess.run(lr)
+		f.write("Step: %d\t TrLoss: %f\t TestLoss: %f\t ValLoss: %f\t Epoch: %d\t Learning rate: %f\n" % (t, loss, test_loss, validation_losses[-1], curr_epoch, lr)) 
 		#f.write("Step: %d\t Loss: %f\t Max. val. of state: %f\t Max. norm of state: %f\n" % 
 		#		(t, validation_losses[-1], val_max,val_norm_max))
 		f.flush()
@@ -286,10 +296,8 @@ def main(
 		val_cnt = 0 
 		for epoch in epoch_train:
 			print("Epoch: " , i)
-			if opt == "Grad":
-				lr_decay = lr_decay ** max(i + 1 - max_n_epoch, 0.0)
-				sess.run(update, feed_dict={new_lr: learning_rate * lr_decay})
-			sess.run(update, feed_dict={new_lr: learning_rate})
+			if lr_decay != None:
+				sess.run(update, feed_dict={new_lr: learning_rate * (lr_decay ** (i / 10))})
 
 			for step, (X,Y) in enumerate(epoch):
 				batch_x = X
@@ -297,11 +305,13 @@ def main(
 				myfeed_dict = {x: batch_x, y: batch_y, i_s: training_state}
 				_, acc, loss, training_state = sess.run([train_op, accuracy, cost, states], 
 														feed_dict = myfeed_dict)
+				lr = [v for v in tf.global_variables() if v.name == "learning_rate:0"][0]
+				lr = sess.run(lr)
 				print(np.max(training_state))
 				print(np.sqrt(np.sum([j**2 for j in training_state[0]])))
 				print("Iter " + str(t) + ", Minibatch Loss= " + 
 					  "{:.6f}".format(loss) + ", Training Accuracy= " + 
-				  	  "{:.5f}".format(acc) + ", Epoch " + str(i))
+				  	  "{:.5f}".format(acc) + ", Epoch " + str(i) + ", Learning rate= " + str(lr))
 				steps.append(t)
 				losses.append(loss)
 				accs.append(acc)
@@ -310,9 +320,11 @@ def main(
 					do_validation(loss, i) 
 					if val_cnt % 10 == 9: 
 						saver.save(sess, research_filename + "/modelCheckpoint/val=" + str(val_cnt))
-					if is_gates and (model == "GRU" or model == "DRUM"): 
-						kernel = [v for v in tf.global_variables() if v.name == "rnn/multi_rnn_cell/cell_0/drum_cell/gates/kernel:0"][0]
-						bias = [v for v in tf.global_variables() if v.name == "rnn/multi_rnn_cell/cell_0/drum_cell/gates/bias:0"][0]
+					if is_gates and (model == "GRU" or model == "DRUM") and (n_layers == 1): 
+						if model == "GRU": tmp = "gru"
+						if model == "DRUM": tmp = "drum"
+						kernel = [v for v in tf.global_variables() if v.name == "rnn/multi_rnn_cell/cell_0/" + tmp + "_cell/gates/kernel:0"][0]
+						bias = [v for v in tf.global_variables() if v.name == "rnn/multi_rnn_cell/cell_0/" + tmp + "_cell/gates/bias:0"][0]
 						k, b = sess.run([kernel, bias])
 						np.save(research_filename + "/kernel_" + str(val_cnt), k)
 						np.save(research_filename + "/bias_" + str(val_cnt), b)
@@ -343,7 +355,7 @@ if __name__=="__main__":
 	parser.add_argument('--clip_threshold', '-CT', default = None, type = float, help = 'threshold of clipping')
 	parser.add_argument('--regularization_type', '-RT', default = "l1", type = str, help = 'regularization type')
 	parser.add_argument('--keep_prob', '-KP', default = None, type = float, help = 'keep probability for dropout')
-	parser.add_argument('--lr_decay', '-RD', default = 0.8, type = float, help = 'learning rate decay for GradDescent')
+	parser.add_argument('--lr_decay', '-RD', default = None, type = float, help = 'learning rate decay for GradDescent')
 	parser.add_argument('--max_n_epoch', '-ME', default = 4, type = int, help = 'maximum num. of epochs for GradDescent')
 	parser.add_argument('--grid_name', '-GN', default = None, type = str, help = 'specify folder to save to')
 	parser.add_argument('--is_gates', '-G', default = "True", type = str, help = 'ask to save gates (important for research)')

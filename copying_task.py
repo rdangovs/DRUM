@@ -46,17 +46,10 @@ def main(
 	FFT, 
 	learning_rate, 
 	decay,  
-	ismodrelu, 
-	modrelu_const, 
-	istanh, 
 	learning_rate_decay,
-	norm):
+	norm,
+	grid_name):
 	learning_rate = float(learning_rate)
-	
-	## makes the modReLU negative
-	modrelu_const *= -1 
-	#
-
 	decay = float(decay)
 
 	# --- Set data params ----------------
@@ -82,8 +75,6 @@ def main(
 	
 	input_data = tf.one_hot(x, n_input, dtype=tf.float32)
 
-
-
 	# --- Input to hidden layer ----------------------
 	if model == "LSTM":
 		cell = BasicLSTMCell(n_hidden, state_is_tuple=True, forget_bias=1)
@@ -99,9 +90,6 @@ def main(
 		hidden_out, _ = tf.nn.dynamic_rnn(cell, input_data, dtype=tf.float32)
 	# --- Hidden Layer to Output ----------------------
 	# important `tanh` prevention from blow up 
-	if istanh: 
-		hidden_out = tanh(hidden_out)
-
 	V_init_val = np.sqrt(6.)/np.sqrt(n_output + n_input)
 
 	V_weights = tf.get_variable("V_weights", shape = [n_hidden, n_classes], dtype=tf.float32, initializer=tf.random_uniform_initializer(-V_init_val, V_init_val))
@@ -130,15 +118,32 @@ def main(
 	print("###\n")
 
 	# --- save result ----------------------
-	filename = "./output/copying/T=" + str(T) + "/" + model  + "_N=" + str(n_hidden) + "_lambda=" + str(learning_rate) + "_decay=" + str(decay)
-	
-	filename = filename + ".txt"
+	filename = "./output/copying/"
+	if grid_name != None: 
+		filename += grid_name + "/" 
+	filename += "T=" + str(T) + "/"
+	research_filename = filename + "researchModels" + "/" + model  + "_N=" + str(n_hidden) + "_lambda=" + str(learning_rate) + "_decay=" + str(decay) + "/"
+	filename += model  + "_N=" + str(n_hidden) + "_lambda=" + str(learning_rate) + "_decay=" + str(decay)
 	if norm is not None: 
 		filename += "_norm=" + str(norm)
+	filename = filename + ".txt"
+
 	if not os.path.exists(os.path.dirname(filename)):
 		try:
 			os.makedirs(os.path.dirname(filename))
 		except OSError as exc: # Guard against race condition
+			if exc.errno != errno.EEXIST:
+				raise
+	if not os.path.exists(os.path.dirname(research_filename)):
+		try:
+			os.makedirs(os.path.dirname(research_filename))
+		except OSError as exc:
+			if exc.errno != errno.EEXIST:
+				raise
+	if not os.path.exists(os.path.dirname(research_filename + "/modelCheckpoint/")):
+		try:
+			os.makedirs(os.path.dirname(research_filename + "/modelCheckpoint/"))
+		except OSError as exc:
 			if exc.errno != errno.EEXIST:
 				raise
 	f = open(filename, 'w')
@@ -149,12 +154,11 @@ def main(
 
 
 	# --- Training Loop ----------------------
+	saver = tf.train.Saver()
 	mx2  = 0
 	step = 0
-	gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction = 0.10)
 	with tf.Session(config = tf.ConfigProto(log_device_placement = False, 
-										    allow_soft_placement = False,
-										    gpu_options = gpu_options)) as sess:
+										    allow_soft_placement = False)) as sess:
 		sess.run(init)
 
 		steps = []
@@ -166,18 +170,10 @@ def main(
 			batch_x = train_x[step * n_batch : (step+1) * n_batch]
 			batch_y = train_y[step * n_batch : (step+1) * n_batch]
 
-			print(batch_x.shape)
-			print(batch_x[0])
-			input() 
 			sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
 
 			acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
 			loss = sess.run(cost, feed_dict={x: batch_x, y: batch_y})
-
-			if np.isnan(loss) or loss > 30000.0: 
-					f.write("Encountered a NaN blow up! Fix the model/parameters...\n")
-					print("Sorry, a blow up!")
-					sys.exit()
 
 			print("Iter " + str(step) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
@@ -191,26 +187,15 @@ def main(
 
 			f.write("%d\t%f\t%f\n"%(step, loss, acc))
 
-
-			## output hidden value
-			a = [v for v in tf.global_variables() if v.name == "rnn/gru_cell/gates/kernel/RMSProp:0"][0]
-			b = sess.run(a)
-			print(b)
-			input()
-
-			tmp = sess.run(hidden_out, feed_dict={x: batch_x, y: batch_y})
-			print(tmp.size, tmp.shape)
-			mx = 0
-			for i in range(T):
-				if np.abs(np.average(tmp[0][i])) > mx: 
-					mx = np.abs(np.average(tmp[0][i]))
-			print("Max for iteration: ", mx)
-			if mx > mx2: 
-				mx2 = mx
-			print("Max for whole: ", mx2)
-
-			## 
-
+			if step % 4000 == 0: 
+				saver.save(sess, research_filename + "/modelCheckpoint/step=" + str(step))
+				if model == "GRU": tmp = "gru"
+				if model == "DRUM": tmp = "drum"
+				kernel = [v for v in tf.global_variables() if v.name == "rnn/" + tmp + "_cell/gates/kernel:0"][0]
+				bias = [v for v in tf.global_variables() if v.name == "rnn/" + tmp + "_cell/gates/bias:0"][0]
+				k, b = sess.run([kernel, bias])
+				np.save(research_filename + "/kernel_" + str(step), k)
+				np.save(research_filename + "/bias_" + str(step), b)
 
 		print("Optimization Finished!")
 
@@ -237,12 +222,9 @@ if __name__=="__main__":
 	parser.add_argument('--FFT', '-F', type=str, default="False", help='FFT style, default is False')
 	parser.add_argument('--learning_rate', '-R', default=0.001, type=str)
 	parser.add_argument('--decay', '-D', default=0.9, type=str)
-	parser.add_argument('--ismodrelu', '-Mo', default="False", type=str)
-	parser.add_argument('--modrelu_const', '-Co', default=0.0, type=float)	
-	parser.add_argument('--istanh', '-Ta', default="False", type=str)	
 	parser.add_argument('--learning_rate_decay', '-RD', default="False", type=str)
 	parser.add_argument('--norm', '-norm', default=None, type=float)	
-	
+	parser.add_argument('--grid_name', '-GN', default = None, type = str, help = 'specify folder to save to')	
 	args = parser.parse_args()
 	dict = vars(args)
 
@@ -263,11 +245,9 @@ if __name__=="__main__":
 			  	'FFT': dict['FFT'],
 			  	'learning_rate': dict['learning_rate'],
 			  	'decay': dict['decay'],
-			  	'ismodrelu': dict['ismodrelu'],
-			  	'modrelu_const': dict['modrelu_const'],
-			  	'istanh': dict['istanh'],
 			  	'learning_rate_decay': dict['learning_rate_decay'],
-			  	'norm': dict['norm']
+			  	'norm': dict['norm'],
+			  	'grid_name': dict['grid_name']
 			}
 
 	main(**kwargs)
