@@ -3,6 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import numpy as np 
+import aux 
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
@@ -18,6 +20,60 @@ matm = math_ops.matmul
 mul = math_ops.multiply 
 relu = nn_ops.relu
 sign = math_ops.sign
+
+#taken from supercell_DRUM
+def orthogonal(shape):
+	shape = int(shape[0]), int(shape[1])
+	flat_shape = (shape[0], np.prod(shape[1:]))
+	a = np.random.normal(0.0, 1.0, flat_shape)
+	u, _, v = np.linalg.svd(a, full_matrices = False)
+	q = u if u.shape == flat_shape else v
+	return q.reshape(shape)
+
+#taken from supercell_DRUM
+def drum_ortho_initializer(scale=1.0):
+	def _initializer(shape, dtype = tf.float32, partition_info = None):
+		size_x = shape[0]
+		size_h = shape[1] // 2 # assumes a drum.
+		t = np.zeros(shape)
+		t[:, :size_h] = orthogonal([size_x, size_h]) * scale
+		t[:, size_h:size_h * 2] = orthogonal([size_x, size_h]) * scale
+		return tf.constant(t, dtype)
+	return _initializer
+
+def layer_norm_all(h, 
+				   batch_size, 
+				   base, 
+				   num_units, 
+				   scope = "layer_norm", 
+				   reuse = False, 
+				   gamma_start = 1.0, 
+				   epsilon = 1e-3, 
+				   use_bias = True):
+  # Layer Norm (faster version, but not using defun)
+  #
+  # Performas layer norm on multiple base at once (ie, i, g, j, o for lstm)
+  #
+  # Reshapes h in to perform layer norm in parallel
+  if batch_size == None: 
+    batch_size = tf.shape(h)[0]
+  h_reshape = tf.reshape(h, [batch_size, base, num_units])
+  mean = tf.reduce_mean(h_reshape, [2], keep_dims = True)
+  var = tf.reduce_mean(tf.square(h_reshape - mean), [2], keep_dims = True)
+  epsilon = tf.constant(epsilon)
+  rstd = tf.rsqrt(var + epsilon)
+  h_reshape = (h_reshape - mean) * rstd
+  # reshape back to original
+  h = tf.reshape(h_reshape, [batch_size, base * num_units])
+  with tf.variable_scope(scope):
+    if reuse == True:
+      tf.get_variable_scope().reuse_variables()
+    gamma = tf.get_variable('ln_gamma', [base * num_units], initializer = tf.constant_initializer(gamma_start))
+    if use_bias:
+      beta = tf.get_variable('ln_beta', [base * num_units], initializer = tf.constant_initializer(0.0))
+  if use_bias:
+    return gamma * h + beta
+  return gamma * h
 
 def rotation_operator(x, y, eps = 1e-12): 
 	"""Rotation between two tensors: U(x,y) is unitary and takes x to y. 
@@ -133,26 +189,50 @@ print(sess.run(c))
 input()
 """
 
-
 class DRUMCell(RNNCell):
-	"""De-noising Rotational Unit of Memory"""
+	"""
+	De-noising Rotational Unit of Memory
+	TODO: add info about the model 
+	"""
 
 	def __init__(self,
-				 hidden_size,
-			     activation = None,
-    			 reuse = None,
-    			 kernel_initializer = None,
-    		     bias_initializer = None, 
-    		     normalization = None, 
-    		     eps = 1e-12
+				 num_units,
+				 activation = None,
+    		     T_norm = None, 
+    		     eps = 1e-12,
+    		     use_zoneout = False, 
+    		     zoneout_keep_h = 0.9,
+    		     is_training = False, 
+    		     use_layer_norm = False
     		     ):
-		super(DRUMCell, self).__init__(_reuse = reuse)
-		self._hidden_size = hidden_size
-		self._activation = activation or relu
-		self._normalization = normalization 
-		self._kernel_initializer = kernel_initializer
-		self._bias_initializer = bias_initializer
-		self._eps = eps 
+		self.num_units = num_units
+		self.activation = activation or relu 
+		self.T_norm = T_norm
+		self.eps = eps 
+		self.use_zoneout  = use_zoneout
+        self.zoneout_keep_h = zoneout_keep_h
+        self.is_training = is_training
+        self.use_layer_norm = use_layer_norm 
+		
+
+	self, num_units, f_bias=1.0, use_zoneout=False,
+                 zoneout_keep_h = 0.9, zoneout_keep_c = 0.5, is_training = False):
+        """Initialize the Layer Norm LSTM cell.
+        Args:
+          num_units: int, The number of units in the LSTM cell.
+          forget_bias: float, The bias added to forget gates (default 1.0).
+          use_recurrent_dropout: float, Whether to use Recurrent Dropout (default False)
+          dropout_keep_prob: float, dropout keep probability (default 0.90)
+        """
+        self.num_units = num_units
+        self.f_bias = f_bias
+
+        self.use_zoneout  = use_zoneout
+        self.zoneout_keep_h = zoneout_keep_h
+        self.zoneout_keep_c = zoneout_keep_c
+
+        self.is_training = is_training
+
 
 	@property
 	def state_size(self):
@@ -165,18 +245,31 @@ class DRUMCell(RNNCell):
 	def call(self, inputs, state):
 		"""De-noising Rotational Unit of Memory (DRUM)"""
 		with vs.variable_scope("gates"): 
-			bias_ones = self._bias_initializer
-			if self._bias_initializer is None:
-				dtype = [a.dtype for a in [inputs, state]][0]
-				bias_ones = init_ops.constant_initializer(1.0, dtype = dtype) 
-				value = sigmoid(
-				_linear([inputs, state], 2 * self._hidden_size, True, bias_ones,
-						self._kernel_initializer))
-			r, u = array_ops.split(value = value, num_or_size_splits = 2, axis = 1)
+			batch_size = inputs.get_shape().as_list()[0]
+			x_size = inputs.get_shape().as_list()[1]
+			w_init = None #uniform initializer 
+			h_init = drum_ortho_initializer(1.0)
+			W_xh = tf.get_variable('W_xh', [x_size, 2 * self._hidden_size], initializer = w_init)
+			W_hh = tf.get_variable('W_hh', [self._hidden_size, 2 * self._hidden_size], initializer = h_init)
+			bias = tf.get_variable('bias_drum', [2 * self._hidden_size], initializer = tf.constant_initializer(0.0))
+			xh = tf.matmul(inputs, W_xh)
+			hh = tf.matmul(state, W_hh)
+			ux, rx = tf.split(xh, 2, 1)
+			uh, rh = tf.split(hh, 2, 1)
+			ub, rb = tf.split(bias, 2, 0) #broadcasting the bias 
+			u = sigmoid(ux + uh + ub)
+			r = sigmoid(rx + rh + rb)
+			if self._use_layer_norm: 
+				concat = tf.concat([u, r], 1)
+				concat = layer_norm_all(concat, batch_size, 2, self._hidden_size, 'ln_all')
+				u, r = tf.split(concat, 2, 1)
 		with vs.variable_scope("candidate"):
-			x_mixed = _linear(inputs, self._hidden_size, True, self._bias_initializer, self._kernel_initializer)
+			W_xh_mixed = tf.get_variable('W_xh_mixed', [x_size, self._hidden_size], initializer = w_init)
+			x_mixed = tf.matmul(inputs, W_xh_mixed)
 			state_new = rotate(x_mixed, r, state)
 			c = self._activation(x_mixed + state_new)
+			if self._dropout_keep_prob != None: 
+				tf.nn.dropout(c, self._dropout_keep_prob)
 		new_h = u * state + (1 - u) * c
 		if self._normalization != None: 
 			new_h = tf.nn.l2_normalize(new_h, 1, epsilon = self._eps) * self._normalization 

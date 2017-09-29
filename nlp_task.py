@@ -4,10 +4,12 @@ from __future__	import print_function
 import numpy as np
 import argparse, os
 import tensorflow as tf
+import time
 from tensorflow.python.ops import init_ops
 from tempfile import TemporaryFile
 from tensorflow.contrib.rnn import LSTMCell, BasicLSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple, MultiRNNCell
 from drum import DRUMCell
+from supercell_DRUM import HyperDRUMCell 
 from ptb_iterator import *
 import re
 
@@ -63,12 +65,13 @@ def main(
 	beta1,
 	n_layers,
 	clip_threshold,
-	regularization_type,
 	keep_prob,
 	lr_decay,
 	max_n_epoch,
 	grid_name, 
-	is_gates
+	is_gates, 
+	n_hyper_hidden,
+	layer_norm
 	):
 	max_len_data = 1000000000
 	epoch_train, vocab_to_idx = file_data('train', n_batch, max_len_data, T, n_epochs, None)
@@ -86,37 +89,40 @@ def main(
 	if model == "LSTM":
 		i_s = tuple([LSTMStateTuple(tf.placeholder("float", [None, n_hidden]), tf.placeholder("float", [None, n_hidden]))
 			   for _ in range(n_layers)])
+	elif model == "HyperDRUM": 
+		i_s = tuple([LSTMStateTuple(tf.placeholder("float", [None, n_hyper_hidden]), tf.placeholder("float", [None, n_hidden + n_hyper_hidden]))
+			   for _ in range(n_layers)])
 	else:
 		i_s = tuple([tf.placeholder("float", [None, n_hidden]) for _ in range(n_layers)])	
 	input_data = tf.one_hot(x, n_input, dtype=tf.float32)
+	if keep_prob != None: 
+		tf.nn.dropout(input_data, keep_prob)
 
+	if model == "HyperDRUM":
+		def hyperdrum_cell(): 
+			return HyperDRUMCell(
+						n_hidden, 
+						hyper_num_units = n_hyper_hidden, 
+						use_recurrent_dropout = layer_norm,
+						normalization = norm) 
+		mcell = MultiRNNCell([hyperdrum_cell() for _ in range(n_layers)], state_is_tuple = True)
 	if model == "DRUM":
 		def drum_cell(): 
-			return DRUMCell(n_hidden, normalization = norm, kernel_initializer = tf.orthogonal_initializer())
-		if keep_prob is not None: 
-			def attn_cell():
-				return tf.contrib.rnn.DropoutWrapper(drum_cell(), output_keep_prob = keep_prob)
-		else: 
-			attn_cell = drum_cell 
-		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = True)
+			return DRUMCell(
+				n_hidden, 
+				normalization = norm, 
+				dropout_keep_prob = keep_prob,
+				use_layer_norm = True
+				)
+		mcell = MultiRNNCell([drum_cell() for _ in range(n_layers)], state_is_tuple = True)
 	if model == "LSTM":
 		def lstm_cell():
 			return LSTMCell(n_hidden, initializer = tf.orthogonal_initializer())
-		if keep_prob is not None: 
-			def attn_cell(): 
-				return tf.contrib.rnn.DropoutWrapper(lstm_cell(), output_keep_prob = keep_prob)
-		else: 
-			attn_cell = lstm_cell 
-		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = True)
+		mcell = MultiRNNCell([lstm_cell() for _ in range(n_layers)], state_is_tuple = True)
 	if model == "GRU": 
 		def gru_cell(): 
 			return GRUCell(n_hidden, kernel_initializer = tf.orthogonal_initializer())
-		if keep_prob is not None: 
-			def attn_cell():
-				return tf.contrib.rnn.DropoutWrapper(gru_cell(), output_keep_prob = keep_prob)
-		else: 
-			attn_cell = gru_cell 
-		mcell = MultiRNNCell([attn_cell() for _ in range(n_layers)], state_is_tuple = True)
+		mcell = MultiRNNCell([gru_cell() for _ in range(n_layers)], state_is_tuple = True)
 	hidden_out, states = tf.nn.dynamic_rnn(mcell, input_data, dtype=tf.float32, initial_state = i_s)
 
 	V_init_val = np.sqrt(6.) / np.sqrt(n_output + n_input)
@@ -129,15 +135,12 @@ def main(
 	hidden_out_list = tf.unstack(hidden_out, axis = 1)
 	temp_out = tf.stack([tf.matmul(i, V_weights) for i in hidden_out_list])
 	output_data = tf.nn.bias_add(tf.transpose(temp_out, [1,0,2]), V_bias) 
+	if keep_prob != None: 
+		tf.nn.dropout(output_data, keep_prob)
+
 
 	cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = output_data, 
 																		 labels = y))
-	if regularization_type == "l1": 
-		regularizer = tf.contrib.layers.l1_regularizer(scale = beta)
-	elif regularization_type == "l2": 
-		regularizer = tf.contrib.layers.l2_regularizer(scale = beta)
-	if beta is not None: 
-		cost += tf.contrib.layers.apply_regularization(regularizer, tf.trainable_variables())
 	correct_pred = tf.equal(tf.argmax(output_data, 2), y)
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
@@ -170,8 +173,6 @@ def main(
 			   "_B=" + str(n_batch) + "_nb_v=" + str(nb_v) + \
 			   "_numEpochs=" + str(n_epochs) + "_lr=" + str(learning_rate) + \
 			   "_beta1=" + str(beta1)
-	if beta is not None: 
-		filename += "_beta=" + str(beta)
 	if clip_threshold is not None: 
 		filename += "_clip_threshold=" + str(clip_threshold)
 	if norm is not None: 
@@ -220,6 +221,10 @@ def main(
 				test_state = tuple([LSTMStateTuple(np.zeros((nb_v, n_hidden), dtype = np.float), 
 											np.zeros((nb_v, n_hidden), dtype = np.float))
 											for _ in range(n_layers)])
+			elif model == "HyperDRUM":
+				test_state = tuple([LSTMStateTuple(np.zeros((nb_v, n_hyper_hidden), dtype = np.float), 
+											np.zeros((nb_v, n_hyper_hidden + n_hidden), dtype = np.float))
+											for _ in range(n_layers)])
 			else:
 				test_state = tuple([np.zeros((nb_v, n_hidden), dtype = np.float)
 									for _ in range(n_layers)])
@@ -251,6 +256,10 @@ def main(
 				val_state = tuple([LSTMStateTuple(np.zeros((nb_v, n_hidden), dtype = np.float), 
 					               np.zeros((nb_v, n_hidden), dtype = np.float))
 								   for _ in range(n_layers)])
+			elif model == "HyperDRUM":
+				val_state = tuple([LSTMStateTuple(np.zeros((nb_v, n_hyper_hidden), dtype = np.float), 
+					               np.zeros((nb_v, n_hyper_hidden + n_hidden), dtype = np.float))
+								   for _ in range(n_layers)])
 			else:
 				val_state = tuple([np.zeros((nb_v, n_hidden), dtype = np.float)
 								   for _ in range(n_layers)])
@@ -259,8 +268,6 @@ def main(
 				val_batch_y = Y_val
 				val_dict = {x: val_batch_x, y: val_batch_y, i_s: val_state}				
 				val_acc, val_loss, val_state = sess.run([accuracy, cost, states], feed_dict = val_dict)
-				val_max = max(val_max, np.max(val_state))
-				val_norm_max = max(val_norm_max, np.sqrt(np.sum([i**2 for i in val_state[0]])))
 				val_losses.append(val_loss)
 		print("Validations:", )
 		validation_losses.append(sum(val_losses) / len(val_losses))
@@ -269,8 +276,6 @@ def main(
 		lr = [v for v in tf.global_variables() if v.name == "learning_rate:0"][0]
 		lr = sess.run(lr)
 		f.write("Step: %d\t TrLoss: %f\t TestLoss: %f\t ValLoss: %f\t Epoch: %d\t Learning rate: %f\n" % (t, loss, test_loss, validation_losses[-1], curr_epoch, lr)) 
-		#f.write("Step: %d\t Loss: %f\t Max. val. of state: %f\t Max. norm of state: %f\n" % 
-		#		(t, validation_losses[-1], val_max,val_norm_max))
 		f.flush()
 
 	saver = tf.train.Saver()
@@ -284,11 +289,18 @@ def main(
 		validation_losses = []
 
 		sess.run(init)
+		if lr_decay == None: 
+			sess.run(update, feed_dict={new_lr: learning_rate})
+
 		if model == "LSTM":
 			training_state = tuple([LSTMStateTuple(np.zeros((n_batch, n_hidden), dtype = np.float), 
 							        np.zeros((n_batch, n_hidden), dtype = np.float)) 
 								 	for _ in range(n_layers)])
-		else:
+		elif model == "HyperDRUM": 
+			training_state = tuple([LSTMStateTuple(np.zeros((n_batch, n_hyper_hidden), dtype = np.float), 
+							        np.zeros((n_batch, n_hyper_hidden + n_hidden), dtype = np.float)) 
+								 	for _ in range(n_layers)])
+		else: 
 			training_state = tuple([np.zeros((n_batch, n_hidden), dtype = np.float)
 									for _ in range(n_layers)])
 		i = 0
@@ -297,7 +309,7 @@ def main(
 		for epoch in epoch_train:
 			print("Epoch: " , i)
 			if lr_decay != None:
-				sess.run(update, feed_dict={new_lr: learning_rate * (lr_decay ** (i / 10))})
+				sess.run(update, feed_dict={new_lr: learning_rate * (lr_decay ** max(i + 1 - max_n_epoch, 0.0))})
 
 			for step, (X,Y) in enumerate(epoch):
 				batch_x = X
@@ -307,8 +319,6 @@ def main(
 														feed_dict = myfeed_dict)
 				lr = [v for v in tf.global_variables() if v.name == "learning_rate:0"][0]
 				lr = sess.run(lr)
-				print(np.max(training_state))
-				print(np.sqrt(np.sum([j**2 for j in training_state[0]])))
 				print("Iter " + str(t) + ", Minibatch Loss= " + 
 					  "{:.6f}".format(loss) + ", Training Accuracy= " + 
 				  	  "{:.5f}".format(acc) + ", Epoch " + str(i) + ", Learning rate= " + str(lr))
@@ -316,7 +326,7 @@ def main(
 				losses.append(loss)
 				accs.append(acc)
 				t += 1
-				if step % 1500 == 1499:
+				if step % 190 == 189:
 					do_validation(loss, i) 
 					if val_cnt % 10 == 9: 
 						saver.save(sess, research_filename + "/modelCheckpoint/val=" + str(val_cnt))
@@ -339,7 +349,7 @@ if __name__=="__main__":
 	parser = argparse.ArgumentParser(
 		description="Copying Memory Problem")
 	parser.add_argument("model", default = 'LSTM', help = 'Model name: LSTM, EURNN, GRU, GORU')
-	parser.add_argument('-T', type = int, default = 50, help = 'T-gram')
+	parser.add_argument('-T', type = int, default = 50, help = 'sequence length')
 	parser.add_argument("--n_epochs", '-E', type = int, default = 20, help = 'num epochs')
 	parser.add_argument('--n_batch', '-B', type = int, default = 32, help = 'batch size')
 	parser.add_argument('--n_hidden', '-H', type = int, default = 128, help = 'hidden layer size')
@@ -353,12 +363,13 @@ if __name__=="__main__":
 	parser.add_argument('--beta1', '-beta1', default = 0.9, type = float, help = 'beta1 value')
 	parser.add_argument('--n_layers', '-NL', default = 1, type = int, help = 'number of layers')
 	parser.add_argument('--clip_threshold', '-CT', default = None, type = float, help = 'threshold of clipping')
-	parser.add_argument('--regularization_type', '-RT', default = "l1", type = str, help = 'regularization type')
 	parser.add_argument('--keep_prob', '-KP', default = None, type = float, help = 'keep probability for dropout')
 	parser.add_argument('--lr_decay', '-RD', default = None, type = float, help = 'learning rate decay for GradDescent')
-	parser.add_argument('--max_n_epoch', '-ME', default = 4, type = int, help = 'maximum num. of epochs for GradDescent')
+	parser.add_argument('--max_n_epoch', '-ME', default = 12, type = int, help = 'maximum num. of epochs for reducing lr')
 	parser.add_argument('--grid_name', '-GN', default = None, type = str, help = 'specify folder to save to')
-	parser.add_argument('--is_gates', '-G', default = "True", type = str, help = 'ask to save gates (important for research)')
+	parser.add_argument('--is_gates', '-G', default = "False", type = str, help = 'ask to save gates (important for research)')
+	parser.add_argument('--n_hyper_hidden', '-HH', type = int, default = 128, help = 'hidden layer size')
+	parser.add_argument('--layer_norm', '-LN', type = str, default = "False", help = 'layer normalization?')
 
 	args = parser.parse_args()
 	dict = vars(args)
@@ -382,12 +393,13 @@ if __name__=="__main__":
 				'beta1': dict['beta1'],
 				'n_layers': dict['n_layers'],
 				'clip_threshold': dict['clip_threshold'],
-				'regularization_type': dict['regularization_type'],
 				'keep_prob': dict['keep_prob'],
 				'lr_decay': dict['lr_decay'],
 				'max_n_epoch': dict['max_n_epoch'],
 				'grid_name': dict['grid_name'],
-				'is_gates': dict['is_gates']
+				'is_gates': dict['is_gates'], 
+				'n_hyper_hidden': dict['n_hyper_hidden'],
+				'layer_norm': dict['layer_norm']
 			}
 	print(kwargs)
 	main(**kwargs)
