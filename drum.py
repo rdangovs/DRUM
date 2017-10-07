@@ -42,38 +42,38 @@ def drum_ortho_initializer(scale=1.0):
 	return _initializer
 
 def layer_norm_all(h, 
-				   batch_size, 
-				   base, 
-				   num_units, 
-				   scope = "layer_norm", 
-				   reuse = False, 
-				   gamma_start = 1.0, 
-				   epsilon = 1e-3, 
-				   use_bias = True):
-  # Layer Norm (faster version, but not using defun)
-  #
-  # Performas layer norm on multiple base at once (ie, i, g, j, o for lstm)
-  #
-  # Reshapes h in to perform layer norm in parallel
-  if batch_size == None: 
-    batch_size = tf.shape(h)[0]
-  h_reshape = tf.reshape(h, [batch_size, base, num_units])
-  mean = tf.reduce_mean(h_reshape, [2], keep_dims = True)
-  var = tf.reduce_mean(tf.square(h_reshape - mean), [2], keep_dims = True)
-  epsilon = tf.constant(epsilon)
-  rstd = tf.rsqrt(var + epsilon)
-  h_reshape = (h_reshape - mean) * rstd
-  # reshape back to original
-  h = tf.reshape(h_reshape, [batch_size, base * num_units])
-  with tf.variable_scope(scope):
-    if reuse == True:
-      tf.get_variable_scope().reuse_variables()
-    gamma = tf.get_variable('ln_gamma', [base * num_units], initializer = tf.constant_initializer(gamma_start))
-    if use_bias:
-      beta = tf.get_variable('ln_beta', [base * num_units], initializer = tf.constant_initializer(0.0))
-  if use_bias:
-    return gamma * h + beta
-  return gamma * h
+					 batch_size, 
+					 base, 
+					 num_units, 
+					 scope = "layer_norm", 
+					 reuse = False, 
+					 gamma_start = 1.0, 
+					 epsilon = 1e-3, 
+					 use_bias = True):
+	# Layer Norm (faster version, but not using defun)
+	#
+	# Performas layer norm on multiple base at once (ie, i, g, j, o for lstm)
+	#
+	# Reshapes h in to perform layer norm in parallel
+	if batch_size == None: 
+		batch_size = tf.shape(h)[0]
+		h_reshape = tf.reshape(h, [batch_size, base, num_units])
+		mean = tf.reduce_mean(h_reshape, [2], keep_dims = True)
+		var = tf.reduce_mean(tf.square(h_reshape - mean), [2], keep_dims = True)
+		epsilon = tf.constant(epsilon)
+		rstd = tf.rsqrt(var + epsilon)
+		h_reshape = (h_reshape - mean) * rstd
+		# reshape back to original
+		h = tf.reshape(h_reshape, [batch_size, base * num_units])
+	with tf.variable_scope(scope):
+		if reuse == True:
+			tf.get_variable_scope().reuse_variables()
+			gamma = tf.get_variable('ln_gamma', [base * num_units], initializer = tf.constant_initializer(gamma_start))
+		if use_bias:
+			beta = tf.get_variable('ln_beta', [base * num_units], initializer = tf.constant_initializer(0.0))
+		if use_bias:
+			return gamma * h + beta
+		return gamma * h
 
 def rotation_operator(x, y, eps = 1e-12): 
 	"""Rotation between two tensors: U(x,y) is unitary and takes x to y. 
@@ -100,21 +100,21 @@ def rotation_operator(x, y, eps = 1e-12):
 	#get v and concatenate u and v 
 	v = tf.nn.l2_normalize(y - tf.reshape(tf.reduce_sum(u * y, 1), [size_batch,1]) * u, 1, epsilon = eps)
 	step3 = tf.concat([tf.reshape(u, [size_batch, 1, hidden_size]),
-					  tf.reshape(v, [size_batch, 1, hidden_size])], 
-					  axis = 1)
+						tf.reshape(v, [size_batch, 1, hidden_size])], 
+						axis = 1)
 	
 	#do the batch matmul 
 	step4 = tf.reshape(u, [size_batch, hidden_size, 1])
 	step5 = tf.reshape(v, [size_batch, hidden_size, 1])
 	
 	return (tf.eye(hidden_size, batch_shape = [size_batch]) - 
-		   tf.matmul(step4, tf.transpose(step4, [0,2,1])) - 
-		   tf.matmul(step5, tf.transpose(step5, [0,2,1])) + 
-		   tf.matmul(tf.matmul(tf.transpose(step3, [0,2,1]), Rth), step3))
+			 tf.matmul(step4, tf.transpose(step4, [0,2,1])) - 
+			 tf.matmul(step5, tf.transpose(step5, [0,2,1])) + 
+			 tf.matmul(tf.matmul(tf.transpose(step3, [0,2,1]), Rth), step3))
 
 def rotation_components(x, y, eps = 1e-12): 
 	"""Components for the operator U(x,y)
-	   Together with `rotate` achieves best memory complexity: O(N_batch * N_hidden)
+		 Together with `rotate` achieves best memory complexity: O(N_batch * N_hidden)
 
 	Args: 
 		x: a tensor from where we want to start 
@@ -138,8 +138,8 @@ def rotation_components(x, y, eps = 1e-12):
 	#get v and concatenate u and v 
 	v = tf.nn.l2_normalize(y - tf.reshape(tf.reduce_sum(u * y, 1), [size_batch,1]) * u, 1, epsilon = eps)
 	step3 = tf.concat([tf.reshape(u, [size_batch, 1, hidden_size]),
-					  tf.reshape(v, [size_batch, 1, hidden_size])], 
-					  axis = 1)
+						tf.reshape(v, [size_batch, 1, hidden_size])], 
+						axis = 1)
 	
 	#do the batch matmul 
 	step4 = tf.reshape(u, [size_batch, hidden_size, 1])
@@ -161,7 +161,7 @@ def rotate(v1, v2, v):
 	size_batch = tf.shape(v1)[0]
 	hidden_size = tf.shape(v1)[1]
 
-	U  = rotation_components(v1, v2)
+	U	= rotation_components(v1, v2)
 	h = tf.reshape(v, [size_batch, hidden_size, 1])
 
 	return	(v + tf.reshape(	
@@ -198,40 +198,40 @@ class DRUMCell(RNNCell):
 	def __init__(self,
 				 num_units,
 				 activation = None,
-    		     T_norm = None, 
-    		     eps = 1e-12,
-    		     use_zoneout = False, 
-    		     zoneout_keep_h = 0.9,
-    		     is_training = False, 
-    		     use_layer_norm = False
-    		     ):
+				 T_norm = None, 
+				 eps = 1e-12,
+				 use_zoneout = False, 
+				 zoneout_keep_h = 0.9,
+				 is_training = False, 
+				 use_layer_norm = False
+				 ):
 		self.num_units = num_units
 		self.activation = activation or relu 
 		self.T_norm = T_norm
 		self.eps = eps 
-		self.use_zoneout  = use_zoneout
-        self.zoneout_keep_h = zoneout_keep_h
-        self.is_training = is_training
-        self.use_layer_norm = use_layer_norm 
+		self.use_zoneout	= use_zoneout
+		self.zoneout_keep_h = zoneout_keep_h
+		self.is_training = is_training
+		self.use_layer_norm = use_layer_norm 
 		
 
-	self, num_units, f_bias=1.0, use_zoneout=False,
-                 zoneout_keep_h = 0.9, zoneout_keep_c = 0.5, is_training = False):
-        """Initialize the Layer Norm LSTM cell.
-        Args:
-          num_units: int, The number of units in the LSTM cell.
-          forget_bias: float, The bias added to forget gates (default 1.0).
-          use_recurrent_dropout: float, Whether to use Recurrent Dropout (default False)
-          dropout_keep_prob: float, dropout keep probability (default 0.90)
-        """
-        self.num_units = num_units
-        self.f_bias = f_bias
+		# self, num_units, f_bias=1.0, use_zoneout=False, zoneout_keep_h = 0.9, zoneout_keep_c = 0.5, is_training = False
+		# ):
+		"""Initialize the Layer Norm LSTM cell.
+		Args:
+			num_units: int, The number of units in the LSTM cell.
+			forget_bias: float, The bias added to forget gates (default 1.0).
+			use_recurrent_dropout: float, Whether to use Recurrent Dropout (default False)
+			dropout_keep_prob: float, dropout keep probability (default 0.90)
+		"""
+		self.num_units = num_units
+		self.f_bias = f_bias
 
-        self.use_zoneout  = use_zoneout
-        self.zoneout_keep_h = zoneout_keep_h
-        self.zoneout_keep_c = zoneout_keep_c
+		self.use_zoneout	= use_zoneout
+		self.zoneout_keep_h = zoneout_keep_h
+		self.zoneout_keep_c = zoneout_keep_c
 
-        self.is_training = is_training
+		self.is_training = is_training
 
 
 	@property

@@ -9,6 +9,8 @@ import sys
 
 from tensorflow.contrib.rnn import BasicLSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple
 from drum import DRUMCell
+from EUNN import EUNNCell
+from GORU import GORUCell
 
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
@@ -88,6 +90,13 @@ def main(
 	elif model == "RNN":
 		cell = BasicRNNCell(n_hidden)
 		hidden_out, _ = tf.nn.dynamic_rnn(cell, input_data, dtype=tf.float32)
+	elif model == "EUNN":
+		cell = EUNNCell(n_hidden, capacity, FFT, comp)
+		hidden_out, _ = tf.nn.dynamic_rnn(cell, input_data, dtype=tf.float32)
+	elif model == "GORU":
+		cell = GORUCell(n_hidden, capacity, FFT)
+		hidden_out, _ = tf.nn.dynamic_rnn(cell, input_data, dtype=tf.float32)
+
 	# --- Hidden Layer to Output ----------------------
 	# important `tanh` prevention from blow up 
 	V_init_val = np.sqrt(6.)/np.sqrt(n_output + n_input)
@@ -158,7 +167,7 @@ def main(
 	mx2  = 0
 	step = 0
 	with tf.Session(config = tf.ConfigProto(log_device_placement = False, 
-										    allow_soft_placement = False)) as sess:
+											allow_soft_placement = False)) as sess:
 		sess.run(init)
 
 		steps = []
@@ -184,8 +193,8 @@ def main(
 			losses.append(loss)
 			accs.append(acc)
 			step += 1
-
-			f.write("%d\t%f\t%f\n"%(step, loss, acc))
+			if step % 200 == 199: 
+				f.write("%d\t%f\t%f\n"%(step, loss, acc))
 
 			if step % 4000 == 0: 
 				saver.save(sess, research_filename + "/modelCheckpoint/step=" + str(step))
@@ -213,10 +222,10 @@ if __name__=="__main__":
 	parser = argparse.ArgumentParser(
 		description="Copying Task")
 	parser.add_argument("model", default='LSTM', help='Model name: LSTM, LSTSM, LSTRM, LSTUM, EURNN, GRU, GRRU, GORU, GRRU')
-	parser.add_argument('-T', type=int, default=20, help='Information sequence length')
-	parser.add_argument('--n_iter', '-I', type=int, default=20000, help='training iteration number')
+	parser.add_argument('-T', type=int, default=200, help='Information sequence length')
+	parser.add_argument('--n_iter', '-I', type=int, default=100000, help='training iteration number')
 	parser.add_argument('--n_batch', '-B', type=int, default=128, help='batch size')
-	parser.add_argument('--n_hidden', '-H', type=int, default=50, help='hidden layer size')
+	parser.add_argument('--n_hidden', '-H', type=int, default=100, help='hidden layer size')
 	parser.add_argument('--capacity', '-L', type=int, default=2, help='Tunable style capacity, only for EURNN, default value is 2')
 	parser.add_argument('--comp', '-C', type=str, default="False", help='Complex domain or Real domain. Default is False: real domain')
 	parser.add_argument('--FFT', '-F', type=str, default="False", help='FFT style, default is False')
