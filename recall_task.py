@@ -90,7 +90,7 @@ def main(
 		cell = GRUCell(n_hidden)
 		hidden_out, _ = tf.nn.dynamic_rnn(cell, input_data, dtype=tf.float32)
 	elif model == "DRUM":
-		cell = DRUMCell(n_hidden, normalization = norm, kernel_initializer = tf.orthogonal_initializer())
+		cell = DRUMCell(n_hidden)
 		hidden_out, _ = tf.nn.dynamic_rnn(cell, input_data, dtype = tf.float32)
 	elif model == "RNN":
 		cell = BasicRNNCell(n_hidden)

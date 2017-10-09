@@ -224,14 +224,14 @@ class DRUMCell(RNNCell):
 			use_recurrent_dropout: float, Whether to use Recurrent Dropout (default False)
 			dropout_keep_prob: float, dropout keep probability (default 0.90)
 		"""
-		self.num_units = num_units
-		self.f_bias = f_bias
+		# self.num_units = num_units
+		# self.f_bias = f_bias
 
-		self.use_zoneout	= use_zoneout
-		self.zoneout_keep_h = zoneout_keep_h
-		self.zoneout_keep_c = zoneout_keep_c
+		# self.use_zoneout	= use_zoneout
+		# self.zoneout_keep_h = zoneout_keep_h
+		# self.zoneout_keep_c = zoneout_keep_c
 
-		self.is_training = is_training
+		# self.is_training = is_training
 
 
 	@property
