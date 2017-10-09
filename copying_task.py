@@ -196,15 +196,18 @@ def main(
 			if step % 200 == 199: 
 				f.write("%d\t%f\t%f\n"%(step, loss, acc))
 
-			if step % 4000 == 0: 
-				saver.save(sess, research_filename + "/modelCheckpoint/step=" + str(step))
-				if model == "GRU": tmp = "gru"
-				if model == "DRUM": tmp = "drum"
-				kernel = [v for v in tf.global_variables() if v.name == "rnn/" + tmp + "_cell/gates/kernel:0"][0]
-				bias = [v for v in tf.global_variables() if v.name == "rnn/" + tmp + "_cell/gates/bias:0"][0]
-				k, b = sess.run([kernel, bias])
-				np.save(research_filename + "/kernel_" + str(step), k)
-				np.save(research_filename + "/bias_" + str(step), b)
+			# if step % 4000 == 0: 
+			# 	saver.save(sess, research_filename + "/modelCheckpoint/step=" + str(step))
+			# 	if model == "GRU": tmp = "gru"
+			# 	if model == "DRUM": tmp = "drum"
+			# 	if model == "EUNN": tmp = "eunn"
+			# 	if model == "GORU": tmp = "goru"
+
+			# 	kernel = [v for v in tf.global_variables() if v.name == "rnn/" + tmp + "_cell/gates/kernel:0"][0]
+			# 	bias = [v for v in tf.global_variables() if v.name == "rnn/" + tmp + "_cell/gates/bias:0"][0]
+			# 	k, b = sess.run([kernel, bias])
+			# 	np.save(research_filename + "/kernel_" + str(step), k)
+			# 	np.save(research_filename + "/bias_" + str(step), b)
 
 		print("Optimization Finished!")
 
